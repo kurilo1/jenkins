@@ -1,0 +1,34 @@
+
+def repoName  = 'git@gitlab.chisw.us:insk/auth-service.git'
+def repoCreds = 'ssh_gitlab'
+timestamps {
+    ansiColor('xterm') {
+        node('nodes') {
+            stage('Checkout Code') {
+                checkout([
+                    $class                           : 'GitSCM',
+                    branches                         : [[name: "origin/${BRANCH_NAME}"]],
+                    doGenerateSubmoduleConfigurations: false,
+                    extensions                       : [[
+                        $class: 'UserIdentity',
+                        email : 'alexandr.kurilo@chisw.com',
+                        name  : 'INSK Jenkins'
+                    ]],
+                    userRemoteConfigs: [[
+                        credentialsId: repoCreds,
+                        url          : repoName,
+                        poll         : true
+                    ]]
+                ])
+                short_commit = sh(
+                    returnStdout: true,
+                    script: 'git rev-parse --short HEAD'
+                ).trim()
+                currentBuild.displayName = "${currentBuild.id}_${BRANCH_NAME}-${short_commit}"
+            }
+           stage('docker-compose update') {
+                sh 'docker-compose -f /home/userssh/docker-compose.yml up --no-deps --build -d auth-service'
+            }
+        }
+    }
+}
